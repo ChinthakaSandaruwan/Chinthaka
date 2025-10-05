@@ -73,29 +73,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         try {
+            // Normalize phone to digits-only to ensure consistent matching
+            $phoneNormalized = preg_replace('/[^0-9]/', '', $phone);
+
             // Generate OTP
             $otp = generateOTP();
-            $expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));
 
-            // Store OTP in database
-            $stmt = $pdo->prepare("INSERT INTO otp_verification (phone, otp_code, expires_at) VALUES (?, ?, ?)");
-            $stmt->execute([$phone, $otp, $expires_at]);
+            // Store OTP in database using DB time to avoid timezone mismatches
+            $stmt = $pdo->prepare("INSERT INTO otp_verification (phone, otp_code, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+            $stmt->execute([$phoneNormalized, $otp]);
 
             // Send SMS OTP (mock function)
             $message = "Your RentFinder SL verification code is: $otp. Valid for 10 minutes.";
-            sendSMS($phone, $message);
+            sendSMS($phoneNormalized, $message);
 
             // Store user data in session for verification
             $_SESSION['temp_user'] = [
                 'name' => $name,
                 'email' => $email,
-                'phone' => $phone,
+                'phone' => $phoneNormalized,
                 'password' => hashPassword($password),
                 'user_type' => $user_type
             ];
 
-            // Redirect to OTP verification
-            redirect('verify_otp.php');
+            // Redirect to OTP verification via router
+            redirect('index.php?page=verify_otp');
         } catch (Exception $e) {
             $errors[] = 'An error occurred. Please try again.';
             error_log("Registration error: " . $e->getMessage());

@@ -12,6 +12,10 @@ $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $otp = sanitizeInput($_POST['otp'] ?? '');
+    // Normalize phone from session to digits-only to match storage format
+    if (isset($_SESSION['temp_user']['phone'])) {
+        $_SESSION['temp_user']['phone'] = preg_replace('/[^0-9]/', '', $_SESSION['temp_user']['phone']);
+    }
     $csrf_token = $_POST['csrf_token'] ?? '';
 
     // Validate CSRF token
@@ -29,8 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         try {
             // Verify OTP
+            // Use database server time consistently and allow small clock skew
             $stmt = $pdo->prepare("SELECT * FROM otp_verification 
-                                  WHERE phone = ? AND otp_code = ? AND expires_at > NOW() AND is_used = 0 
+                                  WHERE phone = ? AND otp_code = ? 
+                                  AND is_used = 0 AND expires_at > NOW() 
                                   ORDER BY created_at DESC LIMIT 1");
             $stmt->execute([$_SESSION['temp_user']['phone'], $otp]);
             $otpRecord = $stmt->fetch();

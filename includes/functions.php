@@ -95,10 +95,17 @@ if (!function_exists('generateOTP')) {
         return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'admin';
     }
 
-    // Redirect function
-    function redirect($url)
+    // Redirect function with safe fallback when headers already sent
+    function redirect($url, $status = 302)
     {
-        header("Location: $url");
+        if (!headers_sent()) {
+            header("Location: $url", true, $status);
+            exit();
+        }
+
+        // Fallback to client-side redirect if headers already sent
+        echo '<script type="text/javascript">window.location.href = ' . json_encode($url) . ';</script>';
+        echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"></noscript>';
         exit();
     }
 

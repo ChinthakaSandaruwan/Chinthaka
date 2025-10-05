@@ -13,6 +13,7 @@ $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phone = sanitizeInput($_POST['phone'] ?? '');
+    $phoneNormalized = preg_replace('/[^0-9]/', '', $phone);
     $password = $_POST['password'] ?? '';
     $csrf_token = $_POST['csrf_token'] ?? '';
 
@@ -24,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate phone
     if (empty($phone)) {
         $errors[] = 'Phone number is required.';
-    } elseif (!validatePhone($phone)) {
+    } elseif (!validatePhone($phoneNormalized)) {
         $errors[] = 'Please enter a valid Sri Lankan phone number.';
     }
 
@@ -37,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             // Check user credentials
             $stmt = $pdo->prepare("SELECT id, name, email, phone, password, user_type, is_verified FROM users WHERE phone = ?");
-            $stmt->execute([$phone]);
+            $stmt->execute([$phoneNormalized]);
             $user = $stmt->fetch();
 
             if ($user && verifyPassword($password, $user['password'])) {
@@ -70,33 +71,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Handle forgot password
 if (isset($_POST['forgot_password'])) {
     $phone = sanitizeInput($_POST['phone'] ?? '');
+    $phoneNormalized = preg_replace('/[^0-9]/', '', $phone);
 
     if (empty($phone)) {
         $errors[] = 'Please enter your phone number.';
-    } elseif (!validatePhone($phone)) {
+    } elseif (!validatePhone($phoneNormalized)) {
         $errors[] = 'Please enter a valid phone number.';
     } else {
         try {
             // Check if user exists
             $stmt = $pdo->prepare("SELECT id, name FROM users WHERE phone = ?");
-            $stmt->execute([$phone]);
+            $stmt->execute([$phoneNormalized]);
             $user = $stmt->fetch();
 
             if ($user) {
                 // Generate OTP for password reset
                 $otp = generateOTP();
-                $expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));
-
-                // Store OTP
-                $stmt = $pdo->prepare("INSERT INTO otp_verification (phone, otp_code, expires_at) VALUES (?, ?, ?)");
-                $stmt->execute([$phone, $otp, $expires_at]);
+                // Store OTP using DB time and normalized phone
+                $stmt = $pdo->prepare("INSERT INTO otp_verification (phone, otp_code, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+                $stmt->execute([$phoneNormalized, $otp]);
 
                 // Send SMS
                 $message = "Your RentFinder SL password reset code is: $otp. Valid for 10 minutes.";
-                sendSMS($phone, $message);
+                sendSMS($phoneNormalized, $message);
 
                 // Store phone in session for password reset
-                $_SESSION['reset_phone'] = $phone;
+                $_SESSION['reset_phone'] = $phoneNormalized;
 
                 $success = 'Password reset code sent to your phone number.';
             } else {
