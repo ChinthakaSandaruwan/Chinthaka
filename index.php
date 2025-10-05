@@ -1,5 +1,11 @@
 <?php
 
+// Enable output buffering early to avoid "headers already sent" issues
+// This ensures redirects and header modifications can occur after includes
+if (function_exists('ob_start')) {
+    ob_start();
+}
+
 /**
  * RentFinder SL - Main Entry Point
  * Simple router for the application
