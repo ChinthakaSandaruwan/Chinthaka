@@ -95,10 +95,14 @@ if (!function_exists('generateOTP')) {
         return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'admin';
     }
 
-    // Redirect function with safe fallback when headers already sent
+    // Redirect function with buffering and safe fallbacks
     function redirect($url, $status = 302)
     {
+        // If output buffering is active, clear existing buffers before sending headers
         if (!headers_sent()) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
             header("Location: $url", true, $status);
             exit();
         }
