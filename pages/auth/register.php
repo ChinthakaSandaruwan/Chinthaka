@@ -94,8 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'user_type' => $user_type
             ];
 
-            // Redirect to OTP verification
-            redirect('verify_otp.php');
+            // Redirect to OTP verification via router
+            redirect('index.php?page=verify_otp');
         } catch (Exception $e) {
             $errors[] = 'An error occurred. Please try again.';
             error_log("Registration error: " . $e->getMessage());
